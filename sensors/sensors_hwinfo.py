@@ -57,12 +57,28 @@ _lock = threading.Lock()
 _cache = {}
 _cache_time = 0.0
 _warned = False
+_labels = {}
+# The monitor can start a few seconds before HWiNFO publishes its Gadget data; stats.py hides a field for good
+# when it first reads NaN, so the first read waits (up to this long) for HWiNFO instead of returning nothing.
+_STARTUP_WAIT_SECONDS = 90
+_startup_waited = False
 
 
 def _read_vsb() -> dict:
     """Read every ValueRawN from HWiNFO's Gadget key, cached briefly because several scheduler threads read at once."""
-    global _cache, _cache_time, _warned
+    global _cache, _cache_time, _warned, _startup_waited
     with _lock:
+        if not _startup_waited:
+            _startup_waited = True
+            deadline = time.monotonic() + _STARTUP_WAIT_SECONDS
+            while time.monotonic() < deadline:
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _VSB_KEY) as key:
+                        if winreg.QueryInfoKey(key)[1] > 0:
+                            break
+                except OSError:
+                    pass
+                time.sleep(1)
         now = time.monotonic()
         if now - _cache_time < _CACHE_SECONDS:
             return _cache
@@ -76,7 +92,12 @@ def _read_vsb() -> dict:
                     except OSError:
                         break
                     i += 1
-                    if name.startswith("ValueRaw"):
+                    if name.startswith("Label"):
+                        try:
+                            _labels[int(name[5:])] = str(data)
+                        except ValueError:
+                            pass
+                    elif name.startswith("ValueRaw"):
                         try:
                             values[int(name[8:])] = float(str(data).replace(",", "."))
                         except ValueError:
@@ -89,6 +110,11 @@ def _read_vsb() -> dict:
         _cache = values
         _cache_time = now
         return _cache
+
+
+def _label_is_hotspot() -> bool:
+    label = _labels.get(VSB_INDEX["gpu_hotspot"], "").lower().replace(" ", "").replace("-", "")
+    return "hotspot" in label or "junction" in label
 
 
 def get_value(name: str) -> float:
@@ -217,10 +243,13 @@ class Gpu(sensors.Gpu):
             used_pct = used_mem / cls.total_mem_mb * 100.0
         except ZeroDivisionError:
             used_pct = math.nan
-        # Hot spot (junction) temperature is shown as "the" GPU temperature; edge temperature is the fallback
+        # Hot spot (junction) temperature is shown as "the" GPU temperature. No fallback to the edge temperature:
+        # if the hot spot is missing or the HWiNFO index no longer points at it, report NaN rather than a wrong value.
         temp = get_value("gpu_hotspot")
-        if math.isnan(temp):
-            temp = get_value("gpu_temp")
+        if not math.isnan(temp) and not _label_is_hotspot():
+            logger.warning("HWiNFO Gadget index %d is not 'GPU Hot Spot' (label: %r); check VSB_INDEX",
+                           VSB_INDEX["gpu_hotspot"], _labels.get(VSB_INDEX["gpu_hotspot"]))
+            temp = math.nan
         return load, used_pct, used_mem, cls.total_mem_mb, temp
 
     # Recent FPS readings, for a moving average (the theme refreshes FPS every 2 s, so 5 readings ~= 10 s)

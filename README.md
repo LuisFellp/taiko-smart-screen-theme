@@ -84,6 +84,8 @@ preview.png
 
    Se a sua ordem for diferente, ajuste o `VSB_INDEX` no topo de `sensors_hwinfo.py`. Uso de CPU, RAM, VRAM usada e clock da CPU vêm do próprio Windows (psutil / contadores PDH), sem tocar no hardware.
 
+   A temperatura da GPU é sempre o **hot spot**: o leitor confere se o rótulo no índice 2 é mesmo "GPU Hot Spot" e, se não for (ou se a leitura faltar), **não** cai para a temperatura normal, para você nunca ver um número trocado. Na partida ele também espera até 90 s o HWiNFO publicar os dados, para o campo não ficar escondido caso o monitor suba antes.
+
 ## Ajustes
 
 - **Cores e desenho do fundo:** edite `gerar_fundo.py` e rode `python taiko-luis/gerar_fundo.py` (com Pillow instalado). Dentro do projeto o script acha a fonte em `res/fonts/`; aqui no repositório ela está em `fonts/`.
