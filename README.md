@@ -26,6 +26,8 @@ taiko-luis/                 o tema (vai em res/themes/)
   background.png
   gerar_fundo.py            gera o background.png (cores e layout ficam aqui)
 fonts/mplus-rounded/        M PLUS Rounded 1c ExtraBold/Black + licença OFL (vai em res/fonts/)
+patches/
+  barras-arredondadas.patch patch opcional: barras de progresso com pontas arredondadas
 sensors/                    vão em library/sensors/
   sensors_hwinfo.py         leitor de sensores pelo Gadget do HWiNFO (sem admin)
   sensors_custom.py         sensores extras: CPU_FAN_RPM, GPU_FAN_RPM, GPU_HOTSPOT
@@ -57,7 +59,15 @@ preview.png
    HW_SENSORS: HWINFO
    ```
 
-5. No **HWiNFO** (rodando em segundo plano, modo *Sensors-only*), em *Configurar sensores → HWiNFO Gadget*, marque **"Habilitar relatórios para o Gadget"** e ative **"Report value in Gadget"** só nestas leituras, nesta ordem de índice (`VSBidx`):
+5. *(Opcional)* **Barras de progresso arredondadas.** O projeto base desenha as barras como retângulos. Para deixar as pontas redondas (preenchimento e borda, com suavização), aplique o patch na raiz do turing-smart-screen-python:
+
+   ```
+   git apply patches/barras-arredondadas.patch
+   ```
+
+   Ele mexe só em `DisplayProgressBar`, em `library/lcd/lcd_comm.py`, e vale para qualquer tema. Se você atualizar o projeto base, reaplique o patch.
+
+6. No **HWiNFO** (rodando em segundo plano, modo *Sensors-only*), em *Configurar sensores → HWiNFO Gadget*, marque **"Habilitar relatórios para o Gadget"** e ative **"Report value in Gadget"** só nestas leituras, nesta ordem de índice (`VSBidx`):
 
    | Índice | Leitura |
    |---|---|

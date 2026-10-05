@@ -1,0 +1,37 @@
+diff --git a/library/lcd/lcd_comm.py b/library/lcd/lcd_comm.py
+index c0314ce..e44467e 100644
+--- a/library/lcd/lcd_comm.py
++++ b/library/lcd/lcd_comm.py
+@@ -446,11 +446,30 @@ class LcdComm(ABC):
+                 y2 = bar_filled_height
+             else:
+                 y1 = height - 1 - bar_filled_height
+-        draw.rectangle([x1, y1, x2, y2], fill=bar_color, outline=bar_color)
++        # Rounded ends (local patch): drawn 4x larger on a mask, then downscaled for smooth edges
++        ss = 4
++        radius = min(width, height) / 2
++
++        def paste_rounded(box, outline_only=False):
++            bx1, by1, bx2, by2 = box
++            if bx2 < bx1 or by2 < by1:
++                return
++            w, h = int(bx2 - bx1 + 1), int(by2 - by1 + 1)
++            mask = Image.new('L', (w * ss, h * ss), 0)
++            r = min(radius, w / 2, h / 2) * ss
++            md = ImageDraw.Draw(mask)
++            if outline_only:
++                md.rounded_rectangle([0, 0, w * ss - 1, h * ss - 1], radius=r, outline=255, width=ss)
++            else:
++                md.rounded_rectangle([0, 0, w * ss - 1, h * ss - 1], radius=r, fill=255)
++            mask = mask.resize((w, h), Image.LANCZOS)
++            bar_image.paste(Image.new('RGB', (w, h), bar_color), (int(bx1), int(by1)), mask)
++
++        paste_rounded((x1, y1, x2, y2))
+ 
+         if bar_outline:
+             # Draw outline
+-            draw.rectangle([0, 0, width - 1, height - 1], fill=None, outline=bar_color)
++            paste_rounded((0, 0, width - 1, height - 1), outline_only=True)
+ 
+         self.DisplayPILImage(bar_image, x, y)
+ 
